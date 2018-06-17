@@ -1,0 +1,13 @@
+BasedOnStyle:  Chromium
+Standard:        Cpp11
+IndentWidth:     2
+AccessModifierOffset: -2
+BreakBeforeBraces: Mozilla
+ForEachMacros:
+  - foreach
+  - Q_FOREACH
+  - BOOST_FOREACH
+  - FOR
+  - FORBE
+  - FORBACK
+ColumnLimit:     100
