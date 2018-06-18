@@ -13,7 +13,6 @@
 #include <vector>
 #include <chrono>
 
-const bool USE_HALFSOLUTIONS = false;
 const float FUTURE_FACTOR = 0.5f;
 
 // ---- SHORTCUTS ----
@@ -554,11 +553,8 @@ struct PutLanternEffects
   // Return gain and which crystals got only one light out of
   // two.
   tuple<Gain, int> evaluate(int CL,
-                            const vector<Crystal>& crystals,
-                            vector<int>* crystals_needing_one_more_light) const
+                            const vector<Crystal>& crystals) const
   {
-    if (crystals_needing_one_more_light)
-      crystals_needing_one_more_light->clear();
     Gain gain;
     int colors_used = 0;
     int colors_missing = 0;
@@ -593,8 +589,6 @@ struct PutLanternEffects
           assert(colors_kind(cc.colors) == ColorsKind::primary &&
                  colors_kind(cry.missing_colors()) == ColorsKind::secondary);
           colors_missing |= (cry.missing_colors() & ~cc.colors);
-          if (crystals_needing_one_more_light)
-            crystals_needing_one_more_light->push_back(cc.crix);
           gain.realized -= 10;
           gain.future += 10 + 30;
         }
@@ -632,7 +626,6 @@ bool thisisit(RC u, int uc, RC v, int vc, RC x, int xc, RC y, int yc)
 }
 struct LanternJury
 {
-  LanternJury(vector<int>* tmpvector) : crystals_needing_one_more_light(tmpvector) {}
   struct SingleLanternSolution
   {
     SingleLanternSolution() { gain.set_int_min(); }
@@ -640,16 +633,7 @@ struct LanternJury
     int color = -1;
     Gain gain;
   };
-  struct HalfSolution
-  {
-    RC rc;
-    int color;
-    PutLanternEffects ple;
-    int num_crystals_going_incorrect;
-  };
   SingleLanternSolution best_single_lantern_solution;
-  unordered_map<int, vector<HalfSolution>> halfsolutions_by_crystal;
-  vector<int>* crystals_needing_one_more_light;
   void add_option(RC rc,
                   int color,
                   const PutLanternEffects& ple,
@@ -661,18 +645,12 @@ struct LanternJury
     Gain gain;
     int num_crystals_going_incorrect;
     tie(gain, num_crystals_going_incorrect) =
-        ple.evaluate(CL, crystals, crystals_needing_one_more_light);
+        ple.evaluate(CL, crystals);
     if (gain.best_combined() > 0 &&
         gain.weighted_combined() > best_single_lantern_solution.gain.weighted_combined()) {
       best_single_lantern_solution.rc = rc;
       best_single_lantern_solution.color = color;
       best_single_lantern_solution.gain = gain;
-    }
-    if (USE_HALFSOLUTIONS) {
-      for (auto& c : *crystals_needing_one_more_light) {
-        halfsolutions_by_crystal[c].emplace_back(
-            HalfSolution{rc, color, ple, num_crystals_going_incorrect});
-      }
     }
   }
   struct NextMove
@@ -689,34 +667,6 @@ struct LanternJury
       nm.lanterns[0].rc = best_single_lantern_solution.rc;
       nm.lanterns[0].color = best_single_lantern_solution.color;
       nm.gain = best_single_lantern_solution.gain;
-    }
-    if (USE_HALFSOLUTIONS) {
-      for (auto& kv : halfsolutions_by_crystal) {
-        auto& hss = kv.second;
-        int N = hss.size();
-        FOR (i, 0, < N - 1) {
-          auto& u = hss[i];
-          FOR (j, i + 1, < N) {
-            auto& v = hss[j];
-            if (u.color == v.color || u.rc == v.rc)
-              continue;
-            if (can_see_each_other(u.rc, v.rc, board))
-              continue;
-            // Unite the solutions u and v
-            Gain gain;
-            tie(gain, ignore) =
-                PutLanternEffects::unite(u.ple, v.ple).evaluate(CL, crystals, nullptr);
-            if (gain.best_combined() > 0 &&
-                gain.weighted_combined() > nm.gain.weighted_combined()) {
-              nm.lanterns[0].rc = u.rc;
-              nm.lanterns[0].color = u.color;
-              nm.lanterns[1].rc = v.rc;
-              nm.lanterns[1].color = v.color;
-              nm.gain = gain;
-            }
-          }
-        }
-      }
     }
     return nm;
   }
@@ -765,14 +715,13 @@ public:
     }
 
     int score = 0;
-    vector<int> lantern_jury_tmpvector;
     hrc::duration d_rebuild = hrc::duration::zero();
     hrc::duration d_mainloop = hrc::duration::zero();
     FOR (counter, 0, < INT_MAX) {
       auto d0=getTime();
       boardx.rebuild_boardx();
       d_rebuild += getTime()-d0;
-      LanternJury lantern_jury(&lantern_jury_tmpvector);
+      LanternJury lantern_jury;
       d0=getTime();
       FOR (r, 0, < H) {
         FOR (c, 0, < W) {
