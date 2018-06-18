@@ -11,7 +11,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <chrono>
 
 const float FUTURE_FACTOR = 0.5f;
 
@@ -31,7 +30,8 @@ using small = int16_t;  // signed
 using hrc = chrono::high_resolution_clock;
 using time_point = hrc::time_point;
 using chrono::duration;
-time_point getTime(){
+time_point getTime()
+{
   return hrc::now();
 }
 
@@ -552,8 +552,7 @@ struct PutLanternEffects
   bool is_empty() const { return crystals_affected.empty(); }
   // Return gain and which crystals got only one light out of
   // two.
-  tuple<Gain, int> evaluate(int CL,
-                            const vector<Crystal>& crystals) const
+  tuple<Gain, int> evaluate(int CL, const vector<Crystal>& crystals) const
   {
     Gain gain;
     int colors_used = 0;
@@ -644,8 +643,7 @@ struct LanternJury
     assert(!ple.is_empty());
     Gain gain;
     int num_crystals_going_incorrect;
-    tie(gain, num_crystals_going_incorrect) =
-        ple.evaluate(CL, crystals);
+    tie(gain, num_crystals_going_incorrect) = ple.evaluate(CL, crystals);
     if (gain.best_combined() > 0 &&
         gain.weighted_combined() > best_single_lantern_solution.gain.weighted_combined()) {
       best_single_lantern_solution.rc = rc;
@@ -718,11 +716,11 @@ public:
     hrc::duration d_rebuild = hrc::duration::zero();
     hrc::duration d_mainloop = hrc::duration::zero();
     FOR (counter, 0, < INT_MAX) {
-      auto d0=getTime();
+      auto d0 = getTime();
       boardx.rebuild_boardx();
-      d_rebuild += getTime()-d0;
+      d_rebuild += getTime() - d0;
       LanternJury lantern_jury;
-      d0=getTime();
+      d0 = getTime();
       FOR (r, 0, < H) {
         FOR (c, 0, < W) {
           RC rc{(small)r, (small)c};
