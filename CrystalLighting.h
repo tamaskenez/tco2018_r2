@@ -29,10 +29,11 @@ using small = int16_t;  // signed
 #define CHECK(x) assert(x)
 // ----
 
-using time_point = chrono::high_resolution_clock::time_point;
+using hrc = chrono::high_resolution_clock;
+using time_point = hrc::time_point;
 using chrono::duration;
 time_point getTime(){
-  return chrono::high_resolution_clock::now();
+  return hrc::now();
 }
 
 struct uninitialized_t
@@ -765,10 +766,14 @@ public:
 
     int score = 0;
     vector<int> lantern_jury_tmpvector;
+    hrc::duration d_rebuild = hrc::duration::zero();
+    hrc::duration d_mainloop = hrc::duration::zero();
     FOR (counter, 0, < INT_MAX) {
+      auto d0=getTime();
       boardx.rebuild_boardx();
-
+      d_rebuild += getTime()-d0;
       LanternJury lantern_jury(&lantern_jury_tmpvector);
+      d0=getTime();
       FOR (r, 0, < H) {
         FOR (c, 0, < W) {
           RC rc{(small)r, (small)c};
@@ -811,6 +816,7 @@ public:
           }
         }
       }
+      d_mainloop += getTime() - d0;
       auto nm = lantern_jury.get_best_next_move(boardx.crystals, CL, boardx.board);
       if (nm.gain.best_combined() <= 0)
         break;
@@ -837,6 +843,8 @@ public:
     fprintf(stderr, "SCORE should be %d\n", score);
     auto t1 = getTime();
     fprintf(stderr, "Elapsed: %f\n", duration<double>(t1 - t0).count());
+    fprintf(stderr, "Rebuild: %f\n", duration<double>(d_rebuild).count());
+    fprintf(stderr, "Mainloop: %f\n", duration<double>(d_mainloop).count());
     return result;
   }
 };
